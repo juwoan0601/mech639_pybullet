@@ -90,7 +90,6 @@ class pybullet_core:
         print(self.__BoldText + "DOF" + self.__DefaultText + ": {}".format(self.numJoint))
         print(self.__BoldText + "Joint limit" + self.__DefaultText + ": {}".format(joint_limit))
 
-
         ### Start simulation
         self._q_des = np.zeros([self.numJoint])
         self.__isSimulation = True
