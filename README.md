@@ -1,5 +1,5 @@
 # mech639_pybullet
-This is a Pybullet project for POSTECH MECH639 Advancecd Robotics 2023 Summer Semester by Prof.Keehoon Kim[https://march.postech.ac.kr/members/keehoon-kim/]
+This is a Pybullet project for POSTECH MECH639 Advancecd Robotics 2023 Summer Semester by [Prof.Keehoon Kim](https://march.postech.ac.kr/members/keehoon-kim/)
 
 # Getting Started
 ~~~
@@ -22,3 +22,5 @@ git add *
 git commit -m "commit message"
 git push origin main
 ~~~
+
+# Special Thanks
