@@ -7,12 +7,13 @@ Welcome to MECH639's documentation!
 ===================================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
    :caption: Contents:
 
+   modules
    PybulletCore
    RoboticsCore
-
+   
 Indices and tables
 ==================
 
