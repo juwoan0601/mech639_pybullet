@@ -1,3 +1,5 @@
+""" Robotics Implimentation using pybullet
+"""
 
 import numpy as np
 import os
@@ -37,8 +39,6 @@ class pybullet_core:
 
         self.dt = 1. / 240  # Simulation Frequency
         # self.dt = 1./1000  # Simulation Frequency
-
-
 
     def connect_pybullet(self, robot_name = 'IndyRP2', joint_limit = True):
         '''
@@ -100,9 +100,6 @@ class pybullet_core:
         self.visualShapeId_1 = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.02, rgbaColor=[1, 0, 0, 0.5])
         self.visualShapeId_2 = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.005, rgbaColor=[0, 0, 1, 0.3])
 
-
-
-
     def disconnect_pybullet(self):
         '''
         #############################################################
@@ -114,11 +111,8 @@ class pybullet_core:
         p.disconnect()
         print(self.__BoldText + self.__BlueText + "Disconnect Success!" + self.__DefaultText + self.__BlackText)
 
-
-
-
     def _SetRobotJoint(self):
-
+        """Assign Joint for loaded robot using pybullet.setJointMotorControlArray """ 
         while(self.__isSimulation == True):
             p.setJointMotorControlArray(bodyUniqueId=self.robotId,
                                         jointIndices=range(self.numJoint),
@@ -128,12 +122,15 @@ class pybullet_core:
             p.stepSimulation()
             time.sleep(self.dt)
 
-
-
     def MoveRobot(self, angle, verbose=False):
+        """Move Robot using joint angle
 
+        :param angle: list angle list of joint's angle
+        """
+         
         self._q_des = np.array(angle).reshape([self.numJoint])
 
         if (verbose == True):
             print(self.__BoldText + self.__BlueText + "Set desired joint angle: " + self.__DefaultText + self.__BlackText, end='')
             print(self._q_des)
+
