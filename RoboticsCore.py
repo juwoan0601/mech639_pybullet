@@ -2,6 +2,7 @@
 """
 
 import numpy as np
+from tqdm import tqdm
 
 def NearZero(z, threshold=1e-6):
     """Determines whether a scalar is small enough to be treated as zero
@@ -269,7 +270,7 @@ def Adjoint(T):
     """
 
     R, p = TransToRp(T)
-    return np.r_[np.c_[R, np.zeros((3, 3))], np.c_[np.dot(VecToso3(p), R), R]]
+    return np.r_[np.c_[R, np.dot(VecToso3(p), R)], np.c_[np.zeros((3, 3)), R]]
 
 def ScrewToAxis(q, s, h):
     """Takes a parametric description of a screw axis and converts it to a normalized screw axis
@@ -305,7 +306,7 @@ def AxisAng6(expc6):
         theta = np.linalg.norm([expc6[3], expc6[4], expc6[5]])
     return (np.array(expc6 / theta), theta)
 
-def MatrixExp6(se3mat, formula=1):
+def MatrixExp6(se3mat, formula=2):
     """Computes the matrix exponential of an se3 representation of exponential coordinates e^ξ_hat*θ
 
     :param se3mat: A matrix in se3
@@ -495,7 +496,7 @@ def JacobianSpace(Slist, thetalist):
         Js[:, i] = np.dot(Adjoint(T), np.array(Slist)[:, i])
     return Js
 
-def IKinBody(Blist, M, T, thetalist0, eomg, ev):
+def IKinBody(Blist, M, T, thetalist0, eomg, ev, maxiter=1000):
     """Computes inverse kinematics in the body frame for an open chain robot
 
     :param Blist: The joint screw axes in the end-effector frame when the
@@ -511,6 +512,7 @@ def IKinBody(Blist, M, T, thetalist0, eomg, ev):
     :param ev: A small positive tolerance on the end-effector linear position
                error. The returned joint angles must give an end-effector
                position error less than ev
+    :param maxiter: (Optional) Maximum number of iterations. Default=1000.
     :return thetalist: Joint angles that achieve T within the specified
                        tolerances,
     :return success: A logical value where TRUE means that the function found
@@ -542,24 +544,27 @@ def IKinBody(Blist, M, T, thetalist0, eomg, ev):
     """
     thetalist = np.array(thetalist0).copy()
     i = 0
-    maxiterations = 20
+    maxiterations = maxiter
     Vb = se3ToVec(MatrixLog6(np.dot(TransInv(FKinBody(M, Blist, \
                                                       thetalist)), T)))
     err = np.linalg.norm([Vb[0], Vb[1], Vb[2]]) > ev \
           or np.linalg.norm([Vb[3], Vb[4], Vb[5]]) > eomg
-    while err and i < maxiterations:
-        thetalist = thetalist \
-                    + np.dot(np.linalg.pinv(JacobianBody(Blist, \
-                                                         thetalist)), Vb)
-        i = i + 1
-        Vb \
-        = se3ToVec(MatrixLog6(np.dot(TransInv(FKinBody(M, Blist, \
-                                                       thetalist)), T)))
-        err = np.linalg.norm([Vb[0], Vb[1], Vb[2]]) > ev \
-              or np.linalg.norm([Vb[3], Vb[4], Vb[5]]) > eomg
+    
+    with tqdm(total=maxiterations, desc="[IKinBody] Root Finding with iterative Newton-Raphson") as pbar:
+        while err and i < maxiterations:
+            pbar.update(1)
+            thetalist = thetalist \
+                        + np.dot(np.linalg.pinv(JacobianBody(Blist, \
+                                                            thetalist)), Vb)
+            i = i + 1
+            Vb \
+            = se3ToVec(MatrixLog6(np.dot(TransInv(FKinBody(M, Blist, \
+                                                        thetalist)), T)))
+            err = np.linalg.norm([Vb[0], Vb[1], Vb[2]]) > ev \
+                or np.linalg.norm([Vb[3], Vb[4], Vb[5]]) > eomg
     return (thetalist, not err)
 
-def IKinSpace(Slist, M, T, thetalist0, eomg, ev):
+def IKinSpace(Slist, M, T, thetalist0, eomg, ev, maxiter=1000):
     """Computes inverse kinematics in the space frame for an open chain robot
 
     :param Slist: The joint screw axes in the space frame when the
@@ -575,6 +580,7 @@ def IKinSpace(Slist, M, T, thetalist0, eomg, ev):
     :param ev: A small positive tolerance on the end-effector linear position
                error. The returned joint angles must give an end-effector
                position error less than ev
+    :param maxiter: (Optional) Maximum number of iterations. Default=1000.
     :return thetalist: Joint angles that achieve T within the specified
                        tolerances,
     :return success: A logical value where TRUE means that the function found
@@ -606,20 +612,23 @@ def IKinSpace(Slist, M, T, thetalist0, eomg, ev):
     """
     thetalist = np.array(thetalist0).copy()
     i = 0
-    maxiterations = 20
+    maxiterations = maxiter
     Tsb = FKinSpace(M,Slist, thetalist)
     Vs = np.dot(Adjoint(Tsb), \
                 se3ToVec(MatrixLog6(np.dot(TransInv(Tsb), T))))
     err = np.linalg.norm([Vs[0], Vs[1], Vs[2]]) > ev \
           or np.linalg.norm([Vs[3], Vs[4], Vs[5]]) > eomg
-    while err and i < maxiterations:
-        thetalist = thetalist \
-                    + np.dot(np.linalg.pinv(JacobianSpace(Slist, \
-                                                          thetalist)), Vs)
-        i = i + 1
-        Tsb = FKinSpace(M, Slist, thetalist)
-        Vs = np.dot(Adjoint(Tsb), \
-                    se3ToVec(MatrixLog6(np.dot(TransInv(Tsb), T))))
-        err = np.linalg.norm([Vs[0], Vs[1], Vs[2]]) > ev \
-              or np.linalg.norm([Vs[3], Vs[4], Vs[5]]) > eomg
+    
+    with tqdm(total=maxiterations, desc="[IKinSpace] Root Finding with iterative Newton-Raphson") as pbar:
+        while err and i < maxiterations:
+            pbar.update(1)
+            thetalist = thetalist \
+                        + np.dot(np.linalg.pinv(JacobianSpace(Slist, \
+                                                            thetalist)), Vs)
+            i = i + 1
+            Tsb = FKinSpace(M, Slist, thetalist)
+            Vs = np.dot(Adjoint(Tsb), \
+                        se3ToVec(MatrixLog6(np.dot(TransInv(Tsb), T))))
+            err = np.linalg.norm([Vs[0], Vs[1], Vs[2]]) > ev \
+                or np.linalg.norm([Vs[3], Vs[4], Vs[5]]) > eomg
     return (thetalist, not err)

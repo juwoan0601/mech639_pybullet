@@ -286,7 +286,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="RoboticsCore.IKinBody">
-<span class="sig-prename descclassname"><span class="pre">RoboticsCore.</span></span><span class="sig-name descname"><span class="pre">IKinBody</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Blist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thetalist0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eomg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ev</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#RoboticsCore.IKinBody" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">RoboticsCore.</span></span><span class="sig-name descname"><span class="pre">IKinBody</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Blist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thetalist0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eomg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#RoboticsCore.IKinBody" title="Permalink to this definition"></a></dt>
 <dd><p>Computes inverse kinematics in the body frame for an open chain robot</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -304,6 +304,7 @@ orientation error less than eomg</p></li>
 <li><p><strong>ev</strong> – A small positive tolerance on the end-effector linear position
 error. The returned joint angles must give an end-effector
 position error less than ev</p></li>
+<li><p><strong>maxiter</strong> – (Optional) Maximum number of iterations. Default=1000.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return thetalist<span class="colon">:</span></dt>
@@ -346,7 +347,7 @@ ev = 0.001</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="RoboticsCore.IKinSpace">
-<span class="sig-prename descclassname"><span class="pre">RoboticsCore.</span></span><span class="sig-name descname"><span class="pre">IKinSpace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Slist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thetalist0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eomg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ev</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#RoboticsCore.IKinSpace" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">RoboticsCore.</span></span><span class="sig-name descname"><span class="pre">IKinSpace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Slist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">M</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thetalist0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eomg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ev</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#RoboticsCore.IKinSpace" title="Permalink to this definition"></a></dt>
 <dd><p>Computes inverse kinematics in the space frame for an open chain robot</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -364,6 +365,7 @@ orientation error less than eomg</p></li>
 <li><p><strong>ev</strong> – A small positive tolerance on the end-effector linear position
 error. The returned joint angles must give an end-effector
 position error less than ev</p></li>
+<li><p><strong>maxiter</strong> – (Optional) Maximum number of iterations. Default=1000.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return thetalist<span class="colon">:</span></dt>
@@ -506,7 +508,7 @@ ev = 0.001</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="RoboticsCore.MatrixExp6">
-<span class="sig-prename descclassname"><span class="pre">RoboticsCore.</span></span><span class="sig-name descname"><span class="pre">MatrixExp6</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">se3mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">formula</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#RoboticsCore.MatrixExp6" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">RoboticsCore.</span></span><span class="sig-name descname"><span class="pre">MatrixExp6</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">se3mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">formula</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#RoboticsCore.MatrixExp6" title="Permalink to this definition"></a></dt>
 <dd><p>Computes the matrix exponential of an se3 representation of exponential coordinates e^ξ_hat*θ</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>

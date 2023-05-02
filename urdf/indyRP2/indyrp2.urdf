@@ -168,7 +168,7 @@
       <geometry>
         <mesh filename="/meshes/stl/Indy7_6.stl"/>
       </geometry>
-      <material name="white"/>
+      <material name="transparent_grey"/>
     </visual>
     <collision>
       <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.042"/>
