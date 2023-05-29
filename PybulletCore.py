@@ -49,7 +49,7 @@ class pybullet_core:
 
         self.robotDt = self.dt
 
-    def connect_pybullet(self, robot_name = 'IndyRP2', joint_limit = True):
+    def connectPybullet(self, robot_name = 'IndyRP2', joint_limit = True):
         '''
         #############################################################
         PYBULLET CONNECTION
@@ -145,6 +145,7 @@ class pybullet_core:
             baseMass=0, 
             baseVisualShapeIndex=p.createVisualShape(p.GEOM_CYLINDER, length=0.03, radius=0.05, rgbaColor=[0, 1, 0, 0.5]))
         
+        # Generate Axis of world coordinate
         self.xAxisId = p.createMultiBody(
             baseMass=0, 
             baseVisualShapeIndex=p.createVisualShape(p.GEOM_CYLINDER, length=2, radius=0.01, rgbaColor=[1, 0, 0, 1]))
@@ -187,12 +188,12 @@ class pybullet_core:
 
         ### Start simulation
         self.configureDebugMode(self.debugMode)
-        self._q_des = np.zeros([self.numJoint])
+        self._q_des = np.zeros([self.numJoint,1])
         self.__isSimulation = True
-        self._thread = Thread(target=self._SetRobotJoint)
+        self._thread = Thread(target=self._setRobotJoint)
         self._thread.start()
 
-    def disconnect_pybullet(self):
+    def disconnectPybullet(self):
         '''
         #############################################################
         PYBULLET DISCONNECTION
@@ -203,9 +204,10 @@ class pybullet_core:
         p.disconnect()
         print(self.__BoldText + self.__BlueText + "Disconnect Success!" + self.__DefaultText + self.__BlackText)
 
-    def _SetRobotJoint(self):
+    def _setRobotJoint(self):
         """Assign Joint for loaded robot using pybullet.setJointMotorControlArray """ 
         import time
+        import numpy as np
         while(self.__isSimulation == True):
             _startT = time.time()
             if self.debugMode == True:
@@ -255,7 +257,7 @@ class pybullet_core:
         elif enable == True:
             p.configureDebugVisualizer(p.COV_ENABLE_GUI, 1)
 
-    def CreateCirclePathFromEulerZYX(self,phi,theta,psi,pos,r,N=36,verbose=False,maxShape=20):
+    def createCirclePathFromEulerZYX(self,phi,theta,psi,pos,r,N=36,verbose=False,maxShape=20):
         """Create Circle Path on 3D space using transfrom matrix
 
         :param phi: Z axis angle of circle
@@ -290,7 +292,7 @@ class pybullet_core:
 
         return traj
 
-    def CreateArbitaryCirclePath(self,duration,dt,verbose=False,maxShape=20):
+    def createArbitaryCirclePath(self,duration,dt,verbose=False,maxShape=20,seed=-1):
         """Create Circle Path on 3D space using transfrom matrix
 
         :param phi: Z axis angle of circle
@@ -302,6 +304,9 @@ class pybullet_core:
 
         :return: List of SE(3) Matrix
         """
+        if seed<0:pass
+        else: random.seed(seed)
+
         phi = random.random()*(np.pi) - np.pi/2
         theta = random.random()*(np.pi) - np.pi/2
         psi = random.random()*(np.pi) - np.pi/2
@@ -334,7 +339,7 @@ class pybullet_core:
 
         return traj
 
-    def CreateCirclePathFromVector(self,p0,p1,N=36,verbose=False,maxShape=20):
+    def createCirclePathFromVector(self,p0,p1,N=36,verbose=False,maxShape=20):
         # Generate Arbitary circle path
         t = np.arange(0,2*np.pi,2*np.pi/N)
         r = np.linalg.norm(p1)
@@ -366,7 +371,7 @@ class pybullet_core:
         
         return traj
 
-    def RemoveObjects(self,N=200):
+    def removeObjects(self,N=200):
         """Clear Object except Robot, Axis and Endeffector
         """
         def __isTempObject(id):
@@ -387,7 +392,7 @@ class pybullet_core:
                 p.removeBody(i)
                 pbar.update(1)
 
-    def RemoveTraces(self):
+    def removeTraces(self):
         """Clear Object except Robot, Axis and Endeffector
         """
 
@@ -403,7 +408,7 @@ class pybullet_core:
                 jointAngles[i] = (jointAngles[i]+np.pi) % (np.pi*2) - np.pi
         return np.array(jointAngles)
 
-    def MoveRobotByJointAngle(self, jointAngles, verbose=False):
+    def moveRobotByJointAngle(self, jointAngles, verbose=False):
         """Move Robot using joint angle
 
         :param jointAngles: list angle list of joint's angle in radian
@@ -416,11 +421,14 @@ class pybullet_core:
             print(self.__BoldText + self.__BlueText + "Set desired joint angle: " + self.__DefaultText + self.__BlackText, end='')
             print(self._q_des)
 
-    def MoveRobotByPose(self, T, verbose=False, maxiter=1000):
+    def moveRobotByPose(self, T, verbose=False, maxiter=1000,seed=-1):
         """Move Robot using SE3 transform matrix
 
         :param T: 4x4 Transform matrix of end effector
         """
+        if seed<0:pass
+        else: np.random.seed(seed)
+
         eomg = 0.001
         ev = 0.0001
         Tee = np.array([
@@ -435,7 +443,7 @@ class pybullet_core:
         thetalist = np.zeros([self.numJoint])
         while (isSucc == False) and (trial < maxiter):
             thetalist0 = (np.pi-2*np.random.rand(self.numJoint)*np.pi) # random inital joint angle
-            [thetalist_IK, isSucc] = IKinBody(self.Blist, self.M, np.dot(TransInv(Tee),T), thetalist0, eomg, ev, maxiter)
+            [thetalist_IK, isSucc] = IKinBody(self.Blist, self.M, np.dot(T,TransInv(Tee)), thetalist0, eomg, ev, maxiter)
             T_fk = FKinBody(self.M, self.Blist,thetalist_IK)
             _error = np.linalg.norm(T-np.dot(Tee,T_fk))
             if error > _error: 
@@ -453,7 +461,7 @@ class pybullet_core:
             print(self.__BoldText + self.__BlueText + "Set desired joint angle: " + self.__DefaultText + self.__BlackText, end='')
             print(self._q_des)
 
-    def MoveRobotByVelocityTime(self, v, T, frame="body", verbose=False, dt=0.015):
+    def moveRobotByVelocityTime(self, v, T, frame="body", verbose=False, dt=0.015):
         """Move Robot using endeffector's velocity
 
         :param v: 6x1 desired velocity vector [v,w] of end effector
@@ -494,7 +502,7 @@ class pybullet_core:
             _setEndT = time.time()
             self.setDt = _setEndT-_setStartT
         
-    def MoveRobotPoint2Point(self,startT,endT,duration,verbose=False, trace=False,dt=0.015):
+    def moveRobotPoint2Point(self,startT,endT,duration,verbose=False, trace=False,dt=0.015):
         """Move Robot from point to point striaght line
 
         :param v: 6x1 desired velocity vector [v,w] of end effector
@@ -549,13 +557,16 @@ class pybullet_core:
             print(self.__BoldText + self.__BlueText + "Measured Last Joint's Position: " + self.__DefaultText + self.__BlackText, end='')
             print(p.getLinkState(self.robotId, self.numJoint-1)[0])
 
-    def circlingRobot(self,duration,verbose=False,trace=False,dt=0.014,jointLimit=False,plot=False):
+    def moveRobotArbitaryCircle(self,duration,verbose=False,trace=False,dt=0.014,jointLimit=False,plot=False,seed=-1):
         """Move Robot from point to point striaght line
 
         :param v: 6x1 desired velocity vector [v,w] of end effector
         :param T: duration of time(sec) that robot move desired velocity
         :param frame: (optional) frame of Given velocity. "world" for absolute world frame, "body" for endeffector frame. default="body"
         """
+        if seed<0:pass
+        else: random.seed(seed)
+
         # generate mid point
         N = round(duration/dt)
         print(N, self.robotDt)
@@ -565,7 +576,7 @@ class pybullet_core:
         rand_xy = random.random()*0.2-0.1
         rand_z = random.random()*0.3+0.8
         r = random.random()*0.2+0.1
-        traj = self.CreateCirclePathFromEulerZYX(phi,theta,psi,[rand_xy,rand_xy,rand_z],r,N=N, maxShape=10)
+        traj = self.createCirclePathFromEulerZYX(phi,theta,psi,[rand_xy,rand_xy,rand_z],r,N=N, maxShape=10)
 
         # Set initial Position
         self.MoveRobotByPose(traj[0],verbose=verbose,maxiter=10)
@@ -628,11 +639,14 @@ class pybullet_core:
 
         return history
 
-    def MoveRobotByPoseNull(self, T, verbose=False,N=10,mag=3,jointLimit=False,maxiter=1000):
+    def moveRobotByPoseNull(self, T, verbose=False,N=10,mag=3,jointLimit=False,maxiter=1000,seed=-1):
         """Move Robot using SE3 transform matrix
 
         :param T: 4x4 Transform matrix of end effector
         """
+        if seed<0:pass
+        else: np.random.seed(seed)
+
         eomg = 0.001
         ev = 0.0001
         Tee = np.array([
@@ -645,9 +659,10 @@ class pybullet_core:
         trial = 0
         error = 99999
         thetalist = np.zeros([self.numJoint])
+        # Inverse Kinematics
         while (isSucc == False) and (trial < maxiter):
             thetalist0 = (np.pi-2*np.random.rand(self.numJoint)*np.pi) # random inital joint angle
-            [thetalist_IK, isSucc] = IKinBody(self.Blist, self.M, np.dot(TransInv(Tee),T), thetalist0, eomg, ev, maxiter)
+            [thetalist_IK, isSucc] = IKinBody(self.Blist, self.M, np.dot(T,TransInv(Tee)), thetalist0, eomg, ev, maxiter)
             T_fk = FKinBody(self.M, self.Blist,thetalist_IK)
             _error = np.linalg.norm(T-np.dot(Tee,T_fk))
             if error > _error: 
@@ -655,43 +670,52 @@ class pybullet_core:
                 error = _error
             trial+=1
             if (verbose == True): 
-                print(f"Trial #{trial} Error: ", np.linalg.norm(T-np.dot(Tee,T_fk)))
+                print(f"Trial #{trial} Error: ", np.linalg.norm(T-np.dot(T_fk,Tee)))
                 print(f"Current Theta List: ", thetalist)
 
+        # joint limit
         thetalist = self._mapJointAngleConstraint(thetalist)
         self._q_des = np.array(thetalist).reshape([self.numJoint])
 
+        # Explore null space
         for i in range(N):
+            # previous configuration
             J = JacobianSpace(self.Slist,self._q_des)
             mu = np.sqrt(np.linalg.det(np.dot(J,J.T)))
-
+            
+            # random null motion
             z = np.random.rand(self.numJoint).reshape([self.numJoint,1])*mag
             V = np.zeros(6).reshape([6,1])
             theta_dot = np.dot(np.linalg.pinv(J),V) + np.dot((np.eye(self.numJoint)-np.dot(np.linalg.pinv(J),J)),z)
-            _thetalist = self._q_des + theta_dot.reshape([1,self.numJoint])
+            _thetalist = self._q_des + theta_dot.reshape([1,self.numJoint]) # null motion theta_dot
 
+            # newest configuration
             _J = JacobianSpace(self.Slist,np.array(_thetalist).reshape([self.numJoint]))
             _mu = np.sqrt(np.linalg.det(np.dot(_J,_J.T)))
-            print("mu: ",_mu, mu)
+            print("mu: ",_mu)
+            self._q_des = np.array(_thetalist).reshape([self.numJoint])
 
+            # save maximum manipulability
             if mu < _mu:
                 mu = _mu
                 thetalist = _thetalist
             else: 
                 thetalist = self._q_des
             
+            # joint limit
             if jointLimit:
                 thetalist = self._mapJointAngleConstraint(thetalist)
-            # _mu = 0
-            # thetalist = self._q_des + theta_dot.reshape([1,self.numJoint])
-            self._q_des = np.array(thetalist).reshape([self.numJoint])
             time.sleep(0.2)
+
+        print("Max mu: ", mu)
+        self._q_des = np.array(thetalist).reshape([self.numJoint])
+        time.sleep(0.2)
 
         if (verbose == True):
             print(self.__BoldText + self.__BlueText + "Set desired joint angle: " + self.__DefaultText + self.__BlackText, end='')
             print(self._q_des)
 
-    def MoveRobotTrajactory(self,traj,verbose=False,trace=False,jointLimit=False,plot=False,initMaxMani=False,Nfit=0):
+    def moveRobotTrajactory(self,traj,verbose=False,trace=False,jointLimit=False,plot=False,initMaxMani=False,seed=-1,nullMotion=False,potentialFunc=None,potentialK=1):
         """Move Robot from point to point striaght line
 
         :param v: 6x1 desired velocity vector [v,w] of end effector
@@ -701,9 +725,9 @@ class pybullet_core:
 
         # Set initial Position
         if initMaxMani:
-            self.MoveRobotByPoseMaxManip(traj[0],miniter=100)
+            self.moveRobotByPoseMaxManip(traj[0],miniter=100,seed=seed)
         else:
-            self.MoveRobotByPose(traj[0],verbose=verbose,maxiter=10)
+            self.moveRobotByPose(traj[0],verbose=verbose,maxiter=100,seed=seed)
         time.sleep(1)
 
         # History 
@@ -715,41 +739,74 @@ class pybullet_core:
             "joint_velocity":[],
             "ee_position":[],
             "ee_velocity":[],
-            "jacobian":[]}
+            "jacobian":[],
+            "potential_value":[]}
 
-        # for i in tqdm(range(N), desc=f"dT = {round(_dt,5)} / {round(self.robotDt,5)} / {round(self.setDt,5)}"):
         _startT = time.time()
-        N = len(traj)
-        for i in range(N):
-            if Nfit != 0:
-                if i%round(N/Nfit) == 0:
-                    self.MoveRobotByPoseMaxManip(traj[i])
-                    continue
+        pValue = 0
+
+        for i in range(len(traj)):
+            # get velocity value from trajectory
             dp = np.array([
                 traj[(i+1)%(traj.shape[0]),0,3] - traj[i,0,3],
                 traj[(i+1)%(traj.shape[0]),1,3] - traj[i,1,3],
                 traj[(i+1)%(traj.shape[0]),2,3] - traj[i,2,3],
                 0,0,0]).T
-            V = dp
-            J = JacobianSpace(self.Slist,self._q_des)
-            theta_dot = np.dot(np.linalg.pinv(J),V)
-            # theta_dot = np.dot(np.linalg.pinv(J),V) + (np.eye(self.numJoint)-np.dot(np.linalg.pinv(J),J))z
+            Vp_s = dp
+            Jsb_b = JacobianBody(self.Blist,self._q_des)
+            Tsb = FKinBody(self.M,self.Blist,self._q_des)
+            Vsb_b = np.r_[np.dot(TransInv(Tsb)[0:3,0:3],Vp_s[0:3]),[0,0,0]].reshape([6,1]) # 6x1 vector
+            theta_dot = np.dot(np.linalg.pinv(Jsb_b),Vsb_b)
+
+            # Additional Calculation (Not-used value)
+            T = np.eye(4)
+            for j in range(1, self.numJoint):
+                T = np.dot(T, MatrixExp6(VecTose3(np.array(self.Slist)[:, j - 1] * self._q_des[j - 1])))
+            AdjointG = Adjoint(T)
+            Vsb_s = np.dot(AdjointG,Vsb_b)
+
+            # calculate joint velocity using jacobian
+            if potentialFunc is None:
+                theta_dot = np.dot(np.linalg.pinv(Jsb_b),Vsb_b)
+                pValue = 0
+            elif potentialFunc == "MIN_SUM_ANGLE": # minimize sum of joint angle
+                pValue = np.sum(self._q_des)
+                if nullMotion:
+                    z = -potentialK*(np.ones((self.numJoint,1))) # z = -k dp/dtheta, p = sum(theta1+...+thetaN)
+                    theta_dot = np.dot(np.linalg.pinv(Jsb_b),Vsb_b) + np.dot((np.eye(self.numJoint)-np.dot(np.linalg.pinv(Jsb_b),Jsb_b)),z)
+                else:
+                    print("potentialFunc is Not None But nullMotion is True. No nullMotion")
+            elif potentialFunc == "MIN_SQR_ANGLE": # minimize square sum of joint angle
+                pValue = np.linalg.norm(np.array(self._q_des))
+                if nullMotion:
+                    z = -potentialK*(np.array(self._q_des).reshape([self.numJoint,1])) # z = -k dp/dtheta, p = sum(0.5*(theta1)^2+...+0.5*(thetaN)^2)
+                    theta_dot = np.dot(np.linalg.pinv(Jsb_b),Vsb_b) + np.dot((np.eye(self.numJoint)-np.dot(np.linalg.pinv(Jsb_b),Jsb_b)),z)
+                else:
+                    print("potentialFunc is Not None But nullMotion is True. No nullMotion")
+
             # theta_dot = np.dot(np.dot(Jb.T,np.linalg.inv(np.eye(6)*0+np.dot(Jb,Jb.T))),v) # damped solution
-            thetalist = self._q_des + theta_dot
-            
+            thetalist = np.array(self._q_des).reshape([self.numJoint,1]) + theta_dot
+
+            # check joint limit
             if jointLimit:
                 thetalist = self._mapJointAngleConstraint(thetalist)
             self._q_des = np.array(thetalist).reshape([self.numJoint])
-            time.sleep(self.dt)
+
+            # check using forward kinematics
+            T_cal = FKinBody(self.M,self.Blist,self._q_des)
+            T_des = traj[(i+1)%(traj.shape[0])]
 
             # mark trace
             if trace:
-                pos_rms_error = np.linalg.norm(np.array(traj[i])[0:3,3]-np.array(self.endEffectorPose)[0:3,3])
                 end_effector_offset = np.dot(np.array
                                                 (p.getMatrixFromQuaternion(
                                                 p.getLinkState(self.robotId, self.numJoint-1)[1])).reshape((3,3)),
                                             np.array([0,0,self.endEffectorOffset]))
-                pointId = p.addUserDebugPoints([np.array(p.getLinkState(self.robotId, self.numJoint-1)[0])+end_effector_offset],
+                self.endEffectorPosition = np.array([np.array(p.getLinkState(self.robotId, self.numJoint-1)[0])+end_effector_offset]).reshape([3,1])
+                self.endEffectorOrientation = p.getLinkState(self.robotId, self.numJoint-1)[1]
+                self.endEffectorPose = np.r_[np.c_[np.array(p.getMatrixFromQuaternion(self.endEffectorOrientation)).reshape((3,3)),self.endEffectorPosition],np.array([0,0,0,1]).reshape(1,4)]
+                pos_rms_error = np.linalg.norm(traj[i][0:3,3]-self.endEffectorPose[0:3,3])
+                pointId = p.addUserDebugPoints([self.endEffectorPosition],
                                         [[pos_rms_error/0.1,1-pos_rms_error/0.1,0]],pointSize=5,lifeTime=5)
                 self.traceIds.append(pointId)
 
@@ -757,24 +814,34 @@ class pybullet_core:
             history["time"].append(time.time()-_startT)
             history["des_traj"].append(np.array(traj[i]))
             history["real_traj"].append(np.array(self.endEffectorPose))
-            history["joint_angle"].append(np.array(self._q_des))
-            history["joint_velocity"].append(np.array(theta_dot))
-            history["ee_position"].append(np.array(self.endEffectorPosition))
-            history["ee_velocity"].append(np.array(V[0:3]))
-            history["jacobian"].append(np.array(J))
+            history["joint_angle"].append(np.squeeze(self._q_des))
+            history["joint_velocity"].append(np.squeeze(theta_dot))
+            history["ee_position"].append(np.squeeze(self.endEffectorPosition))
+            history["ee_velocity"].append(np.squeeze(Vsb_b[0:3]))
+            history["jacobian"].append(np.array(Jsb_b))
+            history["potential_value"].append(pValue)
+
+            # pause dt
+            time.sleep(self.dt)
 
         _endT = time.time()
 
-        if (verbose == True):
+        if verbose:
             print(f"Tracking Time: {_endT-_startT}")
+        
+        if plot:
+            self.plotTrackingResult(history)
 
         return history
 
-    def MoveRobotByPoseMaxManip(self, T, miniter=10, verbose=False, maxiter=1000, eomg=0.01,ev=0.001):
+    def moveRobotByPoseMaxManip(self, T, miniter=10, verbose=False, maxiter=1000, eomg=0.01,ev=0.001,seed=-1):
         """Move Robot using SE3 transform matrix
 
         :param T: 4x4 Transform matrix of end effector
         """
+        if seed<0:pass
+        else: np.random.seed(seed)
+
         Tee = np.array([
             [ 1, 0, 0,  0],
             [ 0, 1, 0,  0],
@@ -818,3 +885,118 @@ class pybullet_core:
         if (verbose == True):
             print(self.__BoldText + self.__BlueText + "Set desired joint angle: " + self.__DefaultText + self.__BlackText, end='')
             print(self._q_des)
+
+    def calManipuladility(self,J):
+        J = np.array(J)
+        return np.sqrt(np.linalg.det(np.dot(J,J.T)))
+    
+    def plotTrackingResult(self,data):
+        his = data
+        N = len(his["des_traj"])
+        des_pos = []
+        pos_rms_error = []
+        pos_error = []
+        mu = []
+        eulerZYX = []
+        eulerZYX_dot = []
+        mag_ee_vel = []
+        for i in range(N):
+            pos_rms_error.append(np.linalg.norm(his["des_traj"][i][0:3,3]-his["real_traj"][i][0:3,3]))
+            des_pos.append(his["des_traj"][i][0:3,3])
+            pos_error.append(his["des_traj"][i][0:3,3]-his["real_traj"][i][0:3,3])
+            mu.append(np.sqrt(np.linalg.det(np.dot(his["jacobian"][i],his["jacobian"][i].T))))
+            mag_ee_vel.append(np.linalg.norm(his["ee_velocity"][i]))
+            r1,r2=RotToEulerZYZ(his["des_traj"][i][0:3,0:3])
+            eulerZYX.append(r1)
+            phi = r1[0]
+            theta = r1[1]
+            Tr = np.array([
+                [0,-np.sin(phi),np.cos(phi)*np.sin(theta)],
+                [0,np.cos(phi),np.sin(phi)*np.sin(theta)],
+                [1,0,np.cos(theta)]])
+            repT = np.r_[np.c_[np.eye(3),np.zeros((3,3))],np.c_[np.zeros((3,3)),Tr]]
+            Jr = np.dot(np.dot(np.linalg.pinv(repT),his["jacobian"][i]),his["joint_velocity"][i])
+            eulerZYX_dot.append(Jr[3:6])
+
+        plt.figure(figsize=(10,30))
+
+        pN=11
+        ax1 = plt.subplot(pN, 1, 1)
+        plt.plot(his["time"], his["joint_angle"])
+        maxA = np.max(np.abs( his["joint_angle"]))
+        plt.title(f"Joint Angle(rad) | MAX: {round(maxA,4)}")
+        plt.ylabel('Joint Angle(rad)')
+        plt.legend([f"q{x}" for x in range(1,8)])
+        plt.xticks(visible=False)
+
+        ax2 = plt.subplot(pN, 1, 2, sharex=ax1)
+        plt.plot(his["time"], his["joint_velocity"])
+        maxV = np.max(np.abs(his["joint_velocity"]))
+        stdV = np.std(his["joint_velocity"])
+        plt.title(f"Joint Velocity(rad/s) | MAX:{round(maxV,4)}, STD:{round(stdV,4)}")
+        plt.ylabel('Joint Velocity(rad/s)')
+        plt.legend([f"q{x}" for x in range(1,8)])
+        plt.xticks(visible=False)
+
+        ax3 = plt.subplot(pN, 1, 3)
+        plt.plot(his["time"], mu)
+        plt.title(f"Manipulability | MIN: {round(np.min(mu),4)}, MAX:{round(np.max(mu),4)}")
+        plt.ylabel('Manipulability')
+        plt.xticks(visible=False)
+
+        ax4 = plt.subplot(pN, 1, 4)
+        plt.plot(his["time"], des_pos)
+        plt.title('Desired Position')
+        plt.ylabel('Desired [m]')
+        plt.legend(["x","y","z"])
+        plt.xticks(visible=False)
+
+        ax5 = plt.subplot(pN, 1, 5)
+        plt.plot(his["time"], his["ee_position"])
+        plt.title('End Effector Position')
+        plt.ylabel('End Effector Position [m]')
+        plt.legend(["x","y","z"])
+        plt.xticks(visible=False)
+
+        ax6 = plt.subplot(pN, 1, 6)
+        plt.plot(his["time"], his["ee_velocity"])
+        plt.plot(his["time"], mag_ee_vel)
+        totalT = his["time"][-1]-his["time"][0]
+        plt.title(f"End Effector Velocity | {round(np.mean(mag_ee_vel),4)}m/s - Tracking Time: {round(totalT,2)} sec")
+        plt.ylabel('End Effector Velocity [m/s]')
+        plt.legend(["Vx","Vy","Vz", "|V|"])
+        plt.xticks(visible=False)
+
+        ax7 = plt.subplot(pN, 1, 7)
+        plt.plot(his["time"], pos_error)
+        plt.plot(his["time"], pos_rms_error)
+        plt.title(f"End Effector Position Error: AVG: {round(np.mean(pos_rms_error),4)} m, MAX: {round(np.max(pos_rms_error),4)}")
+        plt.ylabel('End Effector Position Error [m]')
+        plt.legend(["dx","dy","dz","d"])
+        plt.xticks(visible=False)
+
+        ax8 = plt.subplot(pN, 1, 8)
+        plt.plot(his["time"], eulerZYX)
+        plt.title('End Effector Euler ZYX Angle')
+        plt.ylabel('End Effector Euler ZYX Angle [rad]')
+        plt.legend(["phi","theta","psi"])
+        plt.xticks(visible=False)
+
+        ax9 = plt.subplot(pN, 1, 9)
+        plt.plot(his["time"], eulerZYX_dot)
+        plt.title('End Effector Euler ZYX Angle Velocity')
+        plt.ylabel('End Effector Euler ZYX Angle Velocity [rad/s]')
+        plt.legend(["phi","theta","psi"])
+        plt.xticks(visible=False)
+
+        ax10 = plt.subplot(pN, 1, 10)
+        plt.plot(his["time"], his["potential_value"])
+        meanP = np.mean(his["potential_value"])
+        maxP = np.max(his["potential_value"])
+        plt.title(f"Potential Value | AVG: {round(meanP,4)}, MAX: {round(maxP,4)}")
+        plt.ylabel('Potential Value')
+
+        plt.grid(True)
+        plt.xlabel("Time (sec)")
+        plt.tight_layout()
+        plt.show()
