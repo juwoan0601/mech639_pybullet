@@ -31,6 +31,119 @@ def Normalize(V):
     """
     return V / np.linalg.norm(V)
 
+def RotX(psi):
+    """Return Rotation Matrix along X-Axis
+
+    :param psi: Rotation Angle
+    :return: 3x3 Rotation Matrix
+
+    Example Input:
+        R = RotX(3.1415/2) # 90 degree
+    Output:
+        np.array([[1, 0, 0],
+                  [0, 0,-1],
+                  [0, 1, 0]])
+    """
+    return np.array([
+        [1,          0,           0],
+        [0,np.cos(psi),-np.sin(psi)],
+        [0,np.sin(psi), np.cos(psi)]])
+
+def RotY(theta):
+    """Return Rotation Matrix along Y-Axis
+
+    :param theta: Rotation Angle
+    :return: 3x3 Rotation Matrix
+
+    Example Input:
+        R = RotY(3.1415/2)) # 90 degree
+    Output:
+        np.array([[ 0, 0, 1],
+                  [ 0, 1, 0],
+                  [-1, 0, 0]])
+    """
+    return np.array([
+        [ np.cos(theta),0,np.sin(theta)],
+        [             0,1,            0],
+        [-np.sin(theta),0,np.cos(theta)]])
+
+def RotZ(phi):
+    """Return Rotation Matrix along Z-Axis
+
+    :param theta: Rotation Angle
+    :return: 3x3 Rotation Matrix
+
+    Example Input:
+        R = RotZ(3.1415/2)) # 90 degree
+    Output:
+        np.array([[0,-1, 0],
+                  [1, 0, 0],
+                  [0, 0, 1]])
+    """
+    return np.array([
+        [np.cos(phi),-np.sin(phi),0],
+        [np.sin(phi), np.cos(phi),0],
+        [          0,           0,1]])
+
+def RotEulerZYX(phi,theta,psi):
+    return np.dot(RotZ(phi),RotY(theta),RotX(psi))
+
+def RotEulerZYZ(phi,theta,psi):
+    return np.dot(RotZ(phi),RotY(theta),RotZ(psi))
+
+def RotToEulerZYX(R):
+    """Return Rotation Matrix along Z-Axis
+
+    :param theta: Rotation Angle
+    :return: 3x3 Rotation Matrix
+
+    Example Input:
+        R = [
+            [0.5,   -0.1464, 0.8536],
+            [0.5,    0.8536,-0.1464],
+            [-0.7071,0.5,       0.5]]
+        RotToEulerZYX(R)
+    Output:
+        np.array([0.78539816,
+                  0.78539816,
+                  0.78539816]) # pi/4
+    """
+    theta1 = -np.arcsin(R[2,0])
+    theta2 = np.pi-theta1
+    if R[2,0] == 1: # theta = p1/2
+        phi1 = 0
+        psi1 = phi1 + np.arctan2(R[0,1],R[0,2])
+    elif R[2,0] == -1: # theta = -p1/2
+        phi1 = 0
+        psi1 = -phi1 + np.arctan2(-R[0,1],-R[0,2])
+    else:
+        psi1 = np.arctan2(R[2,1]/np.cos(theta1),R[2,2]/np.cos(theta1))
+        phi1 = np.arctan2(R[1,0]/np.cos(theta1),R[0,0]/np.cos(theta1))
+        psi2 = np.arctan2(R[2,1]/np.cos(theta2),R[2,2]/np.cos(theta2))
+        phi2 = np.arctan2(R[1,0]/np.cos(theta2),R[0,0]/np.cos(theta2))
+    return np.array([phi1,theta1,psi1])
+
+def RotToEulerZYZ(R):
+    """Return Rotation Matrix along Z-Axis
+
+    :param theta: Rotation Angle
+    :return: 3x3 Rotation Matrix
+    """
+    theta1 = -np.arccos(R[2,2])
+    theta2 = np.pi-theta1
+    if R[2,2] == -1: # theta = p1
+        phi1 = 0
+        psi1 = phi1 + np.arctan2(R[0,1],R[0,2])
+    elif R[2,2] == 1: # theta = -p1
+        phi1 = 0
+        psi1 = -phi1 + np.arctan2(-R[0,1],-R[0,2])
+    else:
+        psi1 = np.arctan2(R[2,1]/np.sin(theta1),-R[2,0]/np.sin(theta1))
+        phi1 = np.arctan2(R[1,2]/np.sin(theta1),R[0,2]/np.sin(theta1))
+        psi2 = np.arctan2(R[2,1]/np.sin(theta2),-R[2,0]/np.sin(theta2))
+        phi2 = np.arctan2(R[1,2]/np.sin(theta2),R[0,2]/np.sin(theta2))
+    return np.array([phi1,theta1,psi1]), np.array([phi2,theta2,psi2])
+
 def RotInv(R):
     """Inverts a rotation matrix
 
@@ -496,7 +609,7 @@ def JacobianSpace(Slist, thetalist):
         Js[:, i] = np.dot(Adjoint(T), np.array(Slist)[:, i])
     return Js
 
-def IKinBody(Blist, M, T, thetalist0, eomg, ev, maxiter=1000):
+def IKinBody(Blist, M, T, thetalist0, eomg, ev, maxiter=1000,verbose=False):
     """Computes inverse kinematics in the body frame for an open chain robot
 
     :param Blist: The joint screw axes in the end-effector frame when the
@@ -550,9 +663,21 @@ def IKinBody(Blist, M, T, thetalist0, eomg, ev, maxiter=1000):
     err = np.linalg.norm([Vb[0], Vb[1], Vb[2]]) > ev \
           or np.linalg.norm([Vb[3], Vb[4], Vb[5]]) > eomg
     
-    with tqdm(total=maxiterations, desc="[IKinBody] Root Finding with iterative Newton-Raphson") as pbar:
+    if verbose:
+        with tqdm(total=maxiterations, desc="[IKinBody] Root Finding with iterative Newton-Raphson") as pbar:
+            while err and i < maxiterations:
+                pbar.update(1)
+                thetalist = thetalist \
+                            + np.dot(np.linalg.pinv(JacobianBody(Blist, \
+                                                                thetalist)), Vb)
+                i = i + 1
+                Vb \
+                = se3ToVec(MatrixLog6(np.dot(TransInv(FKinBody(M, Blist, \
+                                                            thetalist)), T)))
+                err = np.linalg.norm([Vb[0], Vb[1], Vb[2]]) > ev \
+                    or np.linalg.norm([Vb[3], Vb[4], Vb[5]]) > eomg
+    else:
         while err and i < maxiterations:
-            pbar.update(1)
             thetalist = thetalist \
                         + np.dot(np.linalg.pinv(JacobianBody(Blist, \
                                                             thetalist)), Vb)
@@ -632,3 +757,145 @@ def IKinSpace(Slist, M, T, thetalist0, eomg, ev, maxiter=1000):
             err = np.linalg.norm([Vs[0], Vs[1], Vs[2]]) > ev \
                 or np.linalg.norm([Vs[3], Vs[4], Vs[5]]) > eomg
     return (thetalist, not err)
+
+def CubicTimeScaling(Tf, t):
+    """Computes s(t) for a cubic time scaling
+
+    :param Tf: Total time of the motion in seconds from rest to rest
+    :param t: The current time t satisfying 0 < t < Tf
+    :return: The path parameter s(t) corresponding to a third-order
+             polynomial motion that begins and ends at zero velocity
+
+    Example Input:
+        Tf = 2
+        t = 0.6
+    Output:
+        0.216
+    """
+    return 3 * (1.0 * t / Tf) ** 2 - 2 * (1.0 * t / Tf) ** 3
+
+def QuinticTimeScaling(Tf, t):
+    """Computes s(t) for a quintic time scaling
+
+    :param Tf: Total time of the motion in seconds from rest to rest
+    :param t: The current time t satisfying 0 < t < Tf
+    :return: The path parameter s(t) corresponding to a fifth-order
+             polynomial motion that begins and ends at zero velocity and zero
+             acceleration
+
+    Example Input:
+        Tf = 2
+        t = 0.6
+    Output:
+        0.16308
+    """
+    return 10 * (1.0 * t / Tf) ** 3 - 15 * (1.0 * t / Tf) ** 4 \
+           + 6 * (1.0 * t / Tf) ** 5
+
+def JointTrajectory(thetastart, thetaend, Tf, N, method):
+    """Computes a straight-line trajectory in joint space
+
+    :param thetastart: The initial joint variables
+    :param thetaend: The final joint variables
+    :param Tf: Total time of the motion in seconds from rest to rest
+    :param N: The number of points N > 1 (Start and stop) in the discrete
+              representation of the trajectory
+    :param method: The time-scaling method, where 3 indicates cubic (third-
+                   order polynomial) time scaling and 5 indicates quintic
+                   (fifth-order polynomial) time scaling
+    :return: A trajectory as an N x n matrix, where each row is an n-vector
+             of joint variables at an instant in time. The first row is
+             thetastart and the Nth row is thetaend . The elapsed time
+             between each row is Tf / (N - 1)
+
+    Example Input:
+        thetastart = np.array([1, 0, 0, 1, 1, 0.2, 0,1])
+        thetaend = np.array([1.2, 0.5, 0.6, 1.1, 2, 2, 0.9, 1])
+        Tf = 4
+        N = 6
+        method = 3
+    Output:
+        np.array([[     1,     0,      0,      1,     1,    0.2,      0, 1]
+                  [1.0208, 0.052, 0.0624, 1.0104, 1.104, 0.3872, 0.0936, 1]
+                  [1.0704, 0.176, 0.2112, 1.0352, 1.352, 0.8336, 0.3168, 1]
+                  [1.1296, 0.324, 0.3888, 1.0648, 1.648, 1.3664, 0.5832, 1]
+                  [1.1792, 0.448, 0.5376, 1.0896, 1.896, 1.8128, 0.8064, 1]
+                  [   1.2,   0.5,    0.6,    1.1,     2,      2,    0.9, 1]])
+    """
+    N = int(N)
+    timegap = Tf / (N - 1.0)
+    traj = np.zeros((len(thetastart), N))
+    for i in range(N):
+        if method == 3:
+            s = CubicTimeScaling(Tf, timegap * i)
+        else:
+            s = QuinticTimeScaling(Tf, timegap * i)
+        traj[:, i] = s * np.array(thetaend) + (1 - s) * np.array(thetastart)
+    traj = np.array(traj).T
+    return traj
+
+def CartesianTrajectory(Xstart, Xend, Tf, N, method):
+    """Computes a trajectory as a list of N SE(3) matrices corresponding to
+    the origin of the end-effector frame following a straight line
+
+    :param Xstart: The initial end-effector configuration
+    :param Xend: The final end-effector configuration
+    :param Tf: Total time of the motion in seconds from rest to rest
+    :param N: The number of points N > 1 (Start and stop) in the discrete
+              representation of the trajectory
+    :param method: The time-scaling method, where 3 indicates cubic (third-
+                   order polynomial) time scaling and 5 indicates quintic
+                   (fifth-order polynomial) time scaling
+    :return: The discretized trajectory as a list of N matrices in SE(3)
+             separated in time by Tf/(N-1). The first in the list is Xstart
+             and the Nth is Xend
+    This function is similar to ScrewTrajectory, except the origin of the
+    end-effector frame follows a straight line, decoupled from the rotational
+    motion.
+
+    Example Input:
+        Xstart = np.array([[1, 0, 0, 1],
+                           [0, 1, 0, 0],
+                           [0, 0, 1, 1],
+                           [0, 0, 0, 1]])
+        Xend = np.array([[0, 0, 1, 0.1],
+                         [1, 0, 0,   0],
+                         [0, 1, 0, 4.1],
+                         [0, 0, 0,   1]])
+        Tf = 5
+        N = 4
+        method = 5
+    Output:
+        [np.array([[1, 0, 0, 1]
+                   [0, 1, 0, 0]
+                   [0, 0, 1, 1]
+                   [0, 0, 0, 1]]),
+         np.array([[ 0.937, -0.214,  0.277, 0.811]
+                   [ 0.277,  0.937, -0.214,     0]
+                   [-0.214,  0.277,  0.937, 1.651]
+                   [     0,      0,      0,     1]]),
+         np.array([[ 0.277, -0.214,  0.937, 0.289]
+                   [ 0.937,  0.277, -0.214,     0]
+                   [-0.214,  0.937,  0.277, 3.449]
+                   [     0,      0,      0,     1]]),
+         np.array([[0, 0, 1, 0.1]
+                   [1, 0, 0,   0]
+                   [0, 1, 0, 4.1]
+                   [0, 0, 0,   1]])]
+    """
+    N = int(N)
+    timegap = Tf / (N - 1.0)
+    traj = [[None]] * N
+    Rstart, pstart = TransToRp(Xstart)
+    Rend, pend = TransToRp(Xend)
+    for i in range(N):
+        if method == 3:
+            s = CubicTimeScaling(Tf, timegap * i)
+        else:
+            s = QuinticTimeScaling(Tf, timegap * i)
+        traj[i] \
+        = np.r_[np.c_[np.dot(Rstart, \
+        MatrixExp3(MatrixLog3(np.dot(np.array(Rstart).T,Rend)) * s)), \
+                   s * np.array(pend) + (1 - s) * np.array(pstart)], \
+                   [[0, 0, 0, 1]]]
+    return traj
